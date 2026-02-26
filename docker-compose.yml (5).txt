@@ -1,0 +1,35 @@
+services:
+
+  volguard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: volguard
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8000}:8000"
+    volumes:
+      - volguard_data:/app/data      # DB + cache — survives restarts
+      - volguard_logs:/app/logs      # Log rotation handled by Docker
+      - ./.env:/app/.env:ro          # Read-only — secrets never baked into image
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=sqlite:////app/data/volguard.db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "7"           # 7 days of 50MB logs = ~350MB max
+
+volumes:
+  volguard_data:
+    driver: local               # Nifty: SQLite DB + morning brief cache
+  volguard_logs:
+    driver: local
